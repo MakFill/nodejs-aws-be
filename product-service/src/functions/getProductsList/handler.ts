@@ -9,7 +9,6 @@ export const getProductsList: ValidatedEventAPIGatewayProxyEvent<
   never
 > = async (): Promise<any> => {
   console.log('GET request: getProductsList');
-  console.log('OPTIONS:', dbOptions);
   const client = new Client(dbOptions);
   try {
     await client.connect();
