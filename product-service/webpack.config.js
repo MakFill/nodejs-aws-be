@@ -27,7 +27,7 @@ module.exports = {
     concatenateModules: false,
   },
   target: 'node',
-  externals: [nodeExternals()],
+  externals: [nodeExternals(), { pg: { commonjs: 'pg' } }],
   module: {
     rules: [
       {

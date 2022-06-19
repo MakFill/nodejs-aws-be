@@ -1,22 +1,36 @@
-import { Client } from 'pg';
+import { Sequelize } from 'sequelize';
 import 'source-map-support/register';
 import type { ValidatedEventAPIGatewayProxyEvent } from '@libs/api-gateway';
 import { formatJSONResponse, allowHeaders as headers } from '@libs/api-gateway';
 import { middyfy } from '@libs/lambda';
-import dbOptions from '@db/dbOptions';
+import { Product, Stock } from '@db/models';
 
 export const getProductsList: ValidatedEventAPIGatewayProxyEvent<
   never
 > = async (): Promise<any> => {
   console.log('GET request: getProductsList');
-  const client = new Client(dbOptions);
-  try {
-    await client.connect();
-    const { rows } = await client.query(
-      `SELECT p.id, p.description, p.price, p.title, p.image, s.count FROM products p LEFT JOIN stocks s on p.id=s.product_id`
-    );
 
-    return formatJSONResponse({ response: rows, headers });
+  try {
+    const res = await Product.findAll({
+      include: [
+        {
+          model: Stock,
+          attributes: [],
+          as: 'stocks',
+        },
+      ],
+      attributes: [
+        'id',
+        'title',
+        'description',
+        'price',
+        'image',
+        [Sequelize.col('stocks.count'), 'count'],
+      ],
+      raw: true,
+    });
+
+    return formatJSONResponse({ response: res, headers });
   } catch (e) {
     console.error('Error during database request executing', e);
     return formatJSONResponse({
@@ -24,8 +38,6 @@ export const getProductsList: ValidatedEventAPIGatewayProxyEvent<
       statusCode: 500,
       headers,
     });
-  } finally {
-    client.end();
   }
 };
 

@@ -5,7 +5,8 @@
       "@functions/*": ["src/functions/*"],
       "@libs/*": ["src/libs/*"],
       "@mocks/*": ["src/mocks/*"],
-      "@db/*": ["src/db/*"]
+      "@db/*": ["src/db/*"],
+      "@db": ["src/db"]
     }
   }
 }

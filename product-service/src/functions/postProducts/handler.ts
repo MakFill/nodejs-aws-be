@@ -1,10 +1,11 @@
-import { Client } from 'pg';
+import { Sequelize } from 'sequelize';
 import 'source-map-support/register';
 import type { ValidatedEventAPIGatewayProxyEvent } from '@libs/api-gateway';
 import { formatJSONResponse, allowHeaders as headers } from '@libs/api-gateway';
 import { middyfy } from '@libs/lambda';
-import dbOptions from '../../db/dbOptions';
 import { yupObject as verify } from '@libs/validate';
+import { Product, Stock } from '@db/models';
+import { sequelize } from '@db';
 
 import schema from './schema';
 
@@ -23,36 +24,56 @@ export const postProducts: ValidatedEventAPIGatewayProxyEvent<typeof schema> = a
       `POST request: {title: ${title}, description: ${description}, price: ${price}, count: ${count}, image: ${image}`
     );
 
-    const client = new Client(dbOptions);
-
     try {
-      await client.connect();
+      let productId: string;
+      await sequelize.transaction(async (t) => {
+        const product = await Product.create(
+          {
+            title,
+            description,
+            price,
+            image,
+          },
+          { transaction: t }
+        );
+        productId = product.id;
 
-      await client.query(`begin`);
+        await Stock.create(
+          {
+            count,
+            product_id: product.id,
+          },
+          { transaction: t }
+        );
+      });
 
-      await client.query(`
-              insert into products (title, description, price, image) values ('${title}', '${description}', ${price}, '${image}')`);
-
-      await client.query(`
-        insert into stocks (product_id, count) values ((select id from products where products.title='${title}'), ${count})`);
-
-      await client.query('commit');
-
-      const { rows } =
-        (await client.query(
-          `SELECT p.id, p.description, p.price, p.title, p.image, s.count FROM products p  LEFT JOIN stocks s on p.id=s.product_id WHERE p.title='${title}' and s.count=${count}`
-        )) || {};
+      const res = await Product.findOne({
+        where: { id: productId },
+        include: [
+          {
+            model: Stock,
+            attributes: [],
+            as: 'stocks',
+          },
+        ],
+        attributes: [
+          'id',
+          'title',
+          'description',
+          'price',
+          'image',
+          [Sequelize.col('stocks.count'), 'count'],
+        ],
+        raw: true,
+      });
 
       return formatJSONResponse({
-        response: rows,
+        response: res,
         headers,
       });
     } catch (e) {
-      await client.query('rollback');
       console.error('Error during database request executing', e);
       return formatJSONResponse({ response: 'Error during request', statusCode: 500, headers });
-    } finally {
-      client.end();
     }
   });
 
