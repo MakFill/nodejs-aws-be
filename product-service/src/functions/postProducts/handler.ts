@@ -38,10 +38,13 @@ export const postProducts: ValidatedEventAPIGatewayProxyEvent<typeof schema> = a
 
       await client.query('commit');
 
+      const { rows } =
+        (await client.query(
+          `SELECT p.id, p.description, p.price, p.title, p.image, s.count FROM products p  LEFT JOIN stocks s on p.id=s.product_id WHERE p.title='${title}' and s.count=${count}`
+        )) || {};
+
       return formatJSONResponse({
-        response: {
-          data: { title, description, price, count, image },
-        },
+        response: rows,
         headers,
       });
     } catch (e) {
