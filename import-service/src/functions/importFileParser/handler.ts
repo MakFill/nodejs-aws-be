@@ -7,7 +7,7 @@ import { middyfy } from '@libs/lambda';
 const importFileParser: Handler = async (event: S3Event): Promise<InvokeAsyncResponse> => {
   try {
     const s3 = new AWS.S3({ region: 'eu-west-1' });
-
+    const sqs = new AWS.SQS();
     const { BUCKET } = process.env || {};
 
     for (const record of event.Records) {
@@ -22,7 +22,17 @@ const importFileParser: Handler = async (event: S3Event): Promise<InvokeAsyncRes
         s3Stream
           .pipe(csv())
           .on('data', (data) => {
-            console.log(data);
+            sqs.sendMessage(
+              {
+                QueueUrl: process.env.SQS_URL,
+                MessageBody: JSON.stringify(data),
+              },
+              (err) => {
+                if (err) {
+                  console.log('ERROR SQS:', err);
+                }
+              }
+            );
           })
           .on('error', (error) => reject('ERROR: ' + error))
           .on('end', async () => {

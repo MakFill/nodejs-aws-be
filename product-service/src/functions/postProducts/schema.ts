@@ -1,4 +1,5 @@
 export default {
+  type: 'object',
   body: {
     title: { type: 'string' },
     description: { type: 'string' },
