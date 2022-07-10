@@ -27,29 +27,46 @@ const serverlessConfiguration: AWS = {
         Action: ['s3:*'],
         Resource: `arn:aws:s3:::${process.env.BUCKET}/*`,
       },
+      {
+        Effect: 'Allow',
+        Action: ['sqs:*'],
+        Resource: {
+          'Fn::GetAtt': ['SQSQueue', 'Arn'],
+        },
+      },
     ],
     environment: {
       BUCKET: process.env.BUCKET,
+      SQS_URL: {
+        Ref: 'SQSQueue',
+      },
       AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1',
       NODE_OPTIONS: '--enable-source-maps --stack-trace-limit=1000',
     },
     region: 'eu-west-1',
     stage: 'dev',
   },
+  resources: {
+    Resources: {
+      SQSQueue: {
+        Type: 'AWS::SQS::Queue',
+        Properties: {
+          QueueName: 'catalogItemsQueue',
+        },
+      },
+    },
+    Outputs: {
+      SQSArn: {
+        Value: {
+          'Fn::GetAtt': ['SQSQueue', 'Arn'],
+        },
+      },
+    },
+  },
   // import the function via paths
   functions: { importProductsFile, importFileParser },
   package: { individually: true },
   custom: {
-    esbuild: {
-      bundle: true,
-      minify: false,
-      sourcemap: true,
-      exclude: ['aws-sdk'],
-      target: 'node16',
-      define: { 'require.resolve': undefined },
-      platform: 'node',
-      concurrency: 10,
-    },
     webpack: {
       webpackConfig: './webpack.config.js',
       includeModules: true,
