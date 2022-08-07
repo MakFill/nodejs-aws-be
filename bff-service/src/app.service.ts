@@ -19,17 +19,12 @@ export class AppService {
   ) {}
   async getResponse(): Promise<IResponse> {
     const { originalUrl, method, body } = this.request;
-    console.log('originalUrl', originalUrl);
-    console.log('method', method);
-    console.log('body', body);
 
     const [, recipient, ...path] = originalUrl.split('/');
     const recipientURL = process.env[recipient];
-    console.log('recipientURL', recipientURL);
 
-    if (originalUrl === 'products' && method === 'GET') {
+    if (recipient === 'product' && method === 'GET') {
       const data: IResponse['data'] = await this.cacheManager.get(PRODUCTS);
-      console.log('FROM CACHE:', data);
       if (data) return { status: 200, data };
     }
 
@@ -40,15 +35,12 @@ export class AppService {
         ...(Object.keys(body || {}).length > 0 && { data: body }),
       };
 
-      console.log('axiosConfig', axiosConfig);
-
       try {
         const { status, data } = await axios(axiosConfig);
-        console.log('response from recipient', data);
-        if (originalUrl === 'products' && method === 'GET') {
+        if (recipient === 'product' && method === 'GET') {
           const isTimerSeted = await this.cacheManager.get(PRODUCTS);
-          if (!isTimerSeted) console.log('SET TO CACHE');
-          await this.cacheManager.set(PRODUCTS, data, { ttl: 120 });
+          if (!isTimerSeted)
+            await this.cacheManager.set(PRODUCTS, data, { ttl: 120 });
         }
 
         return { status, data };
